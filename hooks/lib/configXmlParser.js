@@ -1,9 +1,9 @@
 /*
 Parser for config.xml file. Read plugin-specific preferences (from <universal-links> tag) as JSON object.
 */
-var path = require('path');
-var ConfigXmlHelper = require('./configXmlHelper.js');
-var DEFAULT_SCHEME = 'http';
+var path = require("path");
+var ConfigXmlHelper = require("./configXmlHelper.js");
+var DEFAULT_SCHEME = "http";
 
 module.exports = {
   readPreferences: readPreferences
@@ -21,29 +21,49 @@ function readPreferences(cordovaContext) {
   // read data from projects root config.xml file
   var configXml = new ConfigXmlHelper(cordovaContext).read();
   if (configXml == null) {
-    console.warn('config.xml not found! Please, check that it exist\'s in your project\'s root directory.');
+    console.warn(
+      "config.xml not found! Please, check that it exist's in your project's root directory."
+    );
     return null;
   }
 
-  // look for data from the <universal-links> tag
-  var ulXmlPreferences = configXml.widget['universal-links'];
-  if (ulXmlPreferences == null || ulXmlPreferences.length == 0) {
-    console.warn('<universal-links> tag is not set in the config.xml. Universal Links plugin is not going to work.');
-    return null;
-  }
+  var output = {};
 
-  var xmlPreferences = ulXmlPreferences[0];
+  cordovaContext.opts.platforms.forEach(function(platform) {
+    const widget =
+      (configXml.widget.platform &&
+        configXml.widget.platform
+          .filter(function(item) {
+            return item.$.name === platform && item["universal-links"];
+          })
+          .shift()) ||
+      configXml.widget;
 
-  // read hosts
-  var hosts = constructHostsList(xmlPreferences);
+    var ulXmlPreferences = widget["universal-links"];
+    if (ulXmlPreferences == null || ulXmlPreferences.length == 0) {
+      console.warn(
+        "<universal-links> tag is not set in the config.xml for " +
+          platform +
+          ". Universal Links plugin is not going to work."
+      );
+      return null;
+    }
 
-  // read ios team ID
-  var iosTeamId = getTeamIdPreference(xmlPreferences);
+    var xmlPreferences = ulXmlPreferences[0];
 
-  return {
-    'hosts': hosts,
-    'iosTeamId': iosTeamId
-  };
+    // read hosts
+    var hosts = constructHostsList(xmlPreferences);
+
+    output[platform] = {
+      hosts: hosts
+    };
+
+    if (platform === "ios") {
+      output[platform].iosTeamId = getTeamIdPreference(xmlPreferences);
+    }
+  });
+
+  return output;
 }
 
 // endregion
@@ -51,8 +71,8 @@ function readPreferences(cordovaContext) {
 // region Private API
 
 function getTeamIdPreference(xmlPreferences) {
-  if (xmlPreferences.hasOwnProperty('ios-team-id')) {
-    return xmlPreferences['ios-team-id'][0]['$']['value'];
+  if (xmlPreferences.hasOwnProperty("ios-team-id")) {
+    return xmlPreferences["ios-team-id"][0]["$"]["value"];
   }
 
   return null;
@@ -68,7 +88,7 @@ function constructHostsList(xmlPreferences) {
   var hostsList = [];
 
   // look for defined hosts
-  var xmlHostList = xmlPreferences['host'];
+  var xmlHostList = xmlPreferences["host"];
   if (xmlHostList == null || xmlHostList.length == 0) {
     return [];
   }
@@ -91,11 +111,11 @@ function constructHostsList(xmlPreferences) {
  */
 function constructHostEntry(xmlElement) {
   var host = {
-      scheme: DEFAULT_SCHEME,
-      name: '',
-      paths: []
-    };
-  var hostProperties = xmlElement['$'];
+    scheme: DEFAULT_SCHEME,
+    name: "",
+    paths: []
+  };
+  var hostProperties = xmlElement["$"];
 
   if (hostProperties == null || hostProperties.length == 0) {
     return null;
@@ -105,7 +125,7 @@ function constructHostEntry(xmlElement) {
   host.name = hostProperties.name;
 
   // read scheme if defined
-  if (hostProperties['scheme'] != null) {
+  if (hostProperties["scheme"] != null) {
     host.scheme = hostProperties.scheme;
   }
 
@@ -122,17 +142,17 @@ function constructHostEntry(xmlElement) {
  * @return {Array} list of path entries, each on is a JSON object
  */
 function constructPaths(xmlElement) {
-  if (xmlElement['path'] == null) {
-    return ['*'];
+  if (xmlElement["path"] == null) {
+    return ["*"];
   }
 
   var paths = [];
   xmlElement.path.some(function(pathElement) {
-    var url = pathElement['$']['url'];
+    var url = pathElement["$"]["url"];
 
     // Ignore explicit paths if '*' is defined
-    if (url === '*') {
-      paths = ['*'];
+    if (url === "*") {
+      paths = ["*"];
       return true;
     }
 
